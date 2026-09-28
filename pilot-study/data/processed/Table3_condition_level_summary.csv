@@ -1,0 +1,11 @@
+run_id,median_device_level_max_battery_temperature_c,observed_battery_temperature_range_c,observed_battery_temperature_min_c,observed_battery_temperature_max_c
+C0,32.0,28.0 to 32.8,28.0,32.8
+C1,31.0,28.0 to 37.8,28.0,37.8
+C2-L,35.0,29.0 to 40.2,29.0,40.2
+C2-H,35.0,31.0 to 40.6,31.0,40.6
+C3-L,35.0,30.0 to 39.6,30.0,39.6
+C3-H,35.0,30.0 to 36.4,30.0,36.4
+C4-L,35.0,30.0 to 39.1,30.0,39.1
+C4-H,36.0,32.0 to 39.5,32.0,39.5
+C5-L,36.0,30.0 to 37.5,30.0,37.5
+C5-H,35.0,29.0 to 35.4,29.0,35.4
