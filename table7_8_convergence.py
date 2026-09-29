@@ -19,4 +19,4 @@ for name,pol,V in ROWS:
     rate,floor=CC.rate_and_floor(g)
     out[name]=dict(final=float(np.mean([r['final_quality'] for r in runs])),final_sd=float(np.std([r['final_quality'] for r in runs],ddof=1)),rate=rate,floor=floor,contrib=float(np.mean([r['n_contributors'] for r in runs])),gini=float(np.mean([r['contrib_gini'] for r in runs])),dropout=float(np.mean([r['dropout_rate'] for r in runs])),finals=[r['final_quality'] for r in runs])
     print(name,round(time.time()-t),'s',flush=True)
-json.dump(out,open('audit_t7.json','w'))
+json.dump(out,open('table7_8_convergence.json','w'))

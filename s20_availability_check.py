@@ -11,7 +11,7 @@ against the original harness.
 Requires: fleet_charging.py, fleet_charging_independent_availability.py
 """
 import numpy as np, json, sys, importlib, time
-import fleet_charging as FC, fleet_charging_fixed as FCf
+import fleet_charging as FC, fleet_charging_independent_availability as FCf
 ROWS=[('Random','random',1,1),('Linear score','static_score',1,1),('Energy-only','energy_only',1,1),('Oort','oort',1,1),('EAFL','eafl',1,1),('WILF-Q-analog','wilfq',1,1),('FedCS-Greedy','fedcs',1,1),('CETAS','charger_aware',5.0,0.5)]
 def row(runs):
     g=lambda k:np.array([r[k] for r in runs],float)
@@ -24,4 +24,4 @@ for tag,mod in (('orig',FC),('fixed',FCf)):
         runs=[mod.run(pol,n=100,hours=6.0,K=30,seed=s,V=V,nu=nu,W_budget=0.05,t_round=65.0,t_gap=15.0) for s in range(6)]
         out[tag][name]=row(runs)
     print(tag,'done',round(time.time()-t),'s',flush=True)
-json.dump(out,open('audit_t4.json','w'))
+json.dump(out,open('s20_availability_check.json','w'))
