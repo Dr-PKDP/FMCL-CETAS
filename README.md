@@ -12,9 +12,33 @@ Python 3.10+ and:
 pip install -r requirements.txt
 ```
 
-The simulation, trace-analysis, and figure-generation workflows need no GPU, cluster, or specialised hardware and run on a single CPU core. `run_cifar_partitions.py` uses a small convolutional model and benefits from a GPU but will run on CPU. The separate `pilot-study/` package includes Android source and telemetry materials; collecting new pilot telemetry requires a compatible Android device and Android/ADB tooling, while inspecting the released data and reproducing the included tables and figures does not.
+The simulation, trace-analysis, and figure-generation workflows need no GPU, cluster, or specialised hardware and run on a single CPU core. `realdata/run_cifar_partitions.py` uses a small convolutional model and benefits from a GPU but will run on CPU. The separate `pilot-study/` package includes Android source and telemetry materials; collecting new pilot telemetry requires a compatible Android device and Android/ADB tooling, while inspecting the released data and reproducing the included tables and figures does not.
 
 ## Repository structure
+
+The core model sits at the repository root, since it's imported by nearly
+every other script. Scripts that reproduce a specific set of tables are
+grouped into subfolders by topic; each one adds the repo root to its own
+import path, so they run correctly from the repository root regardless of
+which subfolder they live in.
+
+```
+.
+├── thermal.py, charging.py, coefficients.py, scheduler.py,      core model
+│   fleet_charging.py, simulation.py, converge_charging.py,
+│   real_data.py, pols.py, oort_v2.py, eafl_v2.py, verify.py,
+│   uncertainty.py, uq_charging.py
+├── reproduce_table4.py, baseline_tuning.py, run_sweeps.py,      main comparison
+│   churn_experiment.py
+├── main_comparison/        Tables S17, S20
+├── convergence/             Tables 7, 8, 9, 10, S21
+├── wear_sensitivity/        Tables S5, S18, S19
+├── realdata/                 Section 8.9 (digits, MNIST, CIFAR-10)
+├── tracesim/                 Sections 7.7, 7.9
+└── pilot-study/               Section 4.4, Table 3
+```
+
+## File-by-file reference
 
 **Core model** (no external data required):
 
@@ -37,27 +61,27 @@ The simulation, trace-analysis, and figure-generation workflows need no GPU, clu
 | `baseline_tuning.py` | Hyperparameter search for the three tunable baselines (Section 8.10) |
 | `run_sweeps.py` | Additional coefficient and parameter sweeps referenced in Sections 8.3–8.5 |
 | `pols.py`, `oort_v2.py`, `eafl_v2.py` | Code-informed reimplementations of Oort and EAFL, checked against their published source |
-| `s17_confirmatory_baselines.py` | Table S17: CETAS against eleven baselines on 30 further seeds, Holm-corrected |
-| `s20_availability_check.py`, `fleet_charging_independent_availability.py` | Table S20: robustness to an independent availability random stream |
+| `main_comparison/s17_confirmatory_baselines.py` | Table S17: CETAS against eleven baselines on 30 further seeds, Holm-corrected |
+| `main_comparison/s20_availability_check.py`, `main_comparison/fleet_charging_independent_availability.py` | Table S20: robustness to an independent availability random stream |
 
 **Convergence:**
 
 | File | Contents |
 | --- | --- |
-| `table7_8_convergence.py` | Tables 7 and 8: optimisation progress at a fixed budget, single partition, six seeds |
-| `table9_and_s21_confirmatory_seeds.py` | Table 9 and Table S21: 30 paired seeds, each with its own fleet and data partition |
-| `noniid_sweep.py` | Section 8.8: convergence at Dirichlet alpha = 0.3, 0.1, and 0.05, single partition, six seeds |
-| `table10_ablation.py` | Table 10: one-factor-at-a-time ablation of the CETAS scoring function |
+| `convergence/table7_8_convergence.py` | Tables 7 and 8: optimisation progress at a fixed budget, single partition, six seeds |
+| `convergence/table9_and_s21_confirmatory_seeds.py` | Table 9 and Table S21: 30 paired seeds, each with its own fleet and data partition |
+| `convergence/noniid_sweep.py` | Section 8.8: convergence at Dirichlet alpha = 0.3, 0.1, and 0.05, single partition, six seeds |
+| `convergence/table10_ablation.py` | Table 10: one-factor-at-a-time ablation of the CETAS scoring function |
 | `churn_experiment.py` | Correlated availability shock robustness check (Section 7.8) |
 
 **Wear model and coefficient sensitivity:**
 
 | File | Contents |
 | --- | --- |
-| `s18_raw_dpp_form.py` | Table S18: CETAS with the raw drift-plus-penalty form and fixed scaling constants |
-| `s19_drain_rate_sweep.py` | Table S19: effect of the wear-queue drain rate W, including constraint feasibility |
+| `wear_sensitivity/s18_raw_dpp_form.py` | Table S18: CETAS with the raw drift-plus-penalty form and fixed scaling constants |
+| `wear_sensitivity/s19_drain_rate_sweep.py` | Table S19: effect of the wear-queue drain rate W, including constraint feasibility |
 | `uncertainty.py`, `uq_charging.py` | Monte Carlo / Sobol sensitivity analysis over the coefficient library |
-| `s5_coefficient_sensitivity.py` | Table S5: ordinal robustness of the Section 8 claims across the coefficient library's plausible ranges |
+| `wear_sensitivity/s5_coefficient_sensitivity.py` | Table S5: ordinal robustness of the Section 8 claims across the coefficient library's plausible ranges |
 
 **Real-data validation (Section 8.9):**
 
@@ -66,9 +90,10 @@ The simulation, trace-analysis, and figure-generation workflows need no GPU, clu
 | `realdata/real_data.py` | Federated partitioner for UCI digits and MNIST |
 | `realdata/prepare_mnist.py` | One-time conversion of raw MNIST files into the array format `real_data.py` expects |
 | `realdata/full_run.py` | Single-partition digits/MNIST comparison |
-| `section8_9_digits_mnist_partitions.py` | Multi-partition digits/MNIST comparison (30 and 10 paired seeds respectively) |
-| `run_cifar_partitions.py` | CIFAR-10 with a small CNN, 20 paired seeds, each with its own fleet and data partition |
-| `analyze_cifar_partitions.py` | Paired analysis of the CIFAR-10 run: geometric-mean ratios, confidence intervals, Wilcoxon tests |
+| `realdata/cifar_data.py`, `realdata/run_cnn.py` | CIFAR-10 federated partitioner and the small-CNN local training step used by `run_cifar_partitions.py` |
+| `realdata/section8_9_digits_mnist_partitions.py` | Multi-partition digits/MNIST comparison (30 and 10 paired seeds respectively) |
+| `realdata/run_cifar_partitions.py` | CIFAR-10 with a small CNN, 20 paired seeds, each with its own fleet and data partition |
+| `realdata/analyze_cifar_partitions.py` | Paired analysis of the CIFAR-10 run: geometric-mean ratios, confidence intervals, Wilcoxon tests |
 | `realdata/train-images-idx3-ubyte.gz`, `train-labels-idx1-ubyte.gz` | Unmodified MNIST training-set files |
 
 **Real-trace validation (Sections 7.7 and 7.9):**
@@ -106,29 +131,31 @@ python reproduce_table4.py
 # 3. Baseline tuning (Section 8.10) and confirmatory checks.
 python baseline_tuning.py
 python run_sweeps.py
-python s17_confirmatory_baselines.py
+python main_comparison/s17_confirmatory_baselines.py
 
 # 4. Convergence (Tables 7-9, Section 8.8).
-python table7_8_convergence.py
-python table9_and_s21_confirmatory_seeds.py 0.3 random,charger_aware,energy_only 0 30
-python noniid_sweep.py
+python convergence/table7_8_convergence.py
+python convergence/table9_and_s21_confirmatory_seeds.py 0.3 random,charger_aware,energy_only 0 30
+python convergence/noniid_sweep.py
 
 # 5. Ablation (Table 10).
-python table10_ablation.py
+python convergence/table10_ablation.py
 
 # 6. Sensitivity analysis over the coefficient library (Table S5, Section 9).
 python uncertainty.py
 python uq_charging.py
-python s5_coefficient_sensitivity.py 0 70
+python wear_sensitivity/s5_coefficient_sensitivity.py 0 70
 
 # 7. Wear model checks (Tables S18, S19).
-python s18_raw_dpp_form.py
-python s19_drain_rate_sweep.py
+python wear_sensitivity/s18_raw_dpp_form.py
+python wear_sensitivity/s19_drain_rate_sweep.py
 
 # 8. Robustness checks (Section 7.8, Table S20).
 python churn_experiment.py
-python s20_availability_check.py
+python main_comparison/s20_availability_check.py
 ```
+
+Every script under `main_comparison/`, `convergence/`, and `wear_sensitivity/` locates the core model at the repo root automatically; run them from the repo root as shown, not from inside their own subfolder.
 
 Each script prints a results table to stdout in the same shape as the corresponding table in the paper, and saves the raw per-seed results to a `.pkl` file for further inspection.
 
@@ -138,12 +165,11 @@ Each script prints a results table to stdout in the same shape as the correspond
 cd realdata
 python prepare_mnist.py    # one-time: builds mnist_full.npz from the raw files
 python full_run.py
-
-cd ..
 python section8_9_digits_mnist_partitions.py digits 17 multi 30
 python section8_9_digits_mnist_partitions.py mnist 50 multi 10
 python run_cifar_partitions.py
 python analyze_cifar_partitions.py
+cd ..
 ```
 
 ### Real-trace validation (Sections 7.7 and 7.9)
@@ -167,7 +193,7 @@ python trace_run.py             # Section 7.9's policy rerun
 ## Notes on reproducibility
 
 - All randomness is seeded through NumPy's `Generator` interface.
-- Every value in `coefficients.py` carries a provenance tier and a plausible range, not just a point estimate; `uncertainty.py`, `uq_charging.py`, and `s5_coefficient_sensitivity.py` test whether the paper's ordinal claims survive that uncertainty.
+- Every value in `coefficients.py` carries a provenance tier and a plausible range, not just a point estimate; `uncertainty.py`, `uq_charging.py`, and `wear_sensitivity/s5_coefficient_sensitivity.py` test whether the paper's ordinal claims survive that uncertainty.
 - `fleet_charging.py`'s policies accept `V` (energy-vs-wear weight) and `nu` (charger-headroom weight) as arguments. The paper's tuned operating point, used throughout Sections 7–9 unless a script is explicitly sweeping one of these two weights, is `V=5.0, nu=0.5`.
 
 ## Citation

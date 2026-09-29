@@ -1,0 +1,13 @@
+This zip mirrors the new repo layout, with one exception: the three files in
+realdata_new_files/ are not a new top-level folder. Move them INTO your
+existing realdata/ folder (the one that already has real_data.py,
+prepare_mnist.py, full_run.py) so it ends up flat, alongside those files:
+
+  realdata_new_files/section8_9_digits_mnist_partitions.py  -> realdata/
+  realdata_new_files/run_cifar_partitions.py                -> realdata/
+  realdata_new_files/analyze_cifar_partitions.py             -> realdata/
+
+Then delete the now-empty realdata_new_files/ folder.
+
+Everything else (README.md, main_comparison/, convergence/, wear_sensitivity/)
+goes at the repo root exactly as named in this zip.
