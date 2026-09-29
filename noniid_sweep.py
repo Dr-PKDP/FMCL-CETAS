@@ -1,16 +1,18 @@
 """
-Extreme non-IID sweep: rerun the fixed-budget quality comparison at
-Dirichlet concentration alpha = 0.3 (baseline, already in the paper),
-0.1, and 0.05, to check CATS's thermal-aware selection does not
-compromise convergence when local distributions are far more skewed.
+Section 8.8: convergence at Dirichlet concentration alpha = 0.3 (matching
+Table 7), 0.1, and 0.05, single data partition, six fleet seeds. Reports how
+the final gradient norm ratio between each policy and random selection
+changes as class skew increases.
+
+Requires: fleet_charging.py, converge_charging.py, simulation.py
 """
 import numpy as np
 from simulation import make_federated_data
 from converge_charging import run, rate_and_floor
 
 N, K, HOURS = 100, 30, 6.0
-SEEDS = range(3)
-POLICIES = ["random", "static_score", "energy_only", "lyapunov", "charger_aware"]
+SEEDS = range(6)
+POLICIES = ["random", "static_score", "energy_only", "charger_aware"]
 ALPHAS = [0.3, 0.1, 0.05]
 
 results = {}
@@ -51,5 +53,5 @@ for alpha in ALPHAS:
     print()
 
 import pickle
-pickle.dump(results, open("noniid_sweep.pkl", "wb"))
-print("Saved: noniid_sweep.pkl")
+pickle.dump(results, open("noniid_sweep_6seeds.pkl", "wb"))
+print("Saved: noniid_sweep_6seeds.pkl")
