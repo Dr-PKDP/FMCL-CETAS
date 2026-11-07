@@ -62,8 +62,6 @@ which subfolder they live in.
 | `main_comparison/s17_confirmatory_baselines.py` | Table S17: simulation runs for CETAS and the baselines on 30 further seeds |
 | `main_comparison/s20_availability_check.py`, `main_comparison/fleet_charging_independent_availability.py` | Table S20: robustness to an independent availability random stream |
 
-The code-informed Oort variant of Table 11 (Section 8.10), the `getTopK` rules of the released Oort code added to the reimplementation, is not part of this repository, so its row in Tables 11, S16, and S17 cannot be regenerated here. `main_comparison/s17_confirmatory_baselines.py` therefore runs ten baselines, and its Holm correction covers 40 tests, whereas Table S17 covers 44.
-
 **Statistics from saved results** (`analysis/`; each script reads the pickle written by the script named in its header):
 
 | File | Contents |
