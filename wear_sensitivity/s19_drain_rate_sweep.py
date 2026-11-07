@@ -27,9 +27,9 @@ def run_ext(policy,seed,V,nu,W):
     horizon=fleet.total_rounds*80; ft=np.where(np.isnan(fleet.full_time),horizon,fleet.full_time); bf=np.where(np.isnan(base),horizon,base)
     pen=ft/np.maximum(bf,1.0)-1.0; touched=fleet.selections>0
     return dict(cyc=fleet.cycling.copy(),Q=st["Q"].copy(),Qmax=np.array(Qmax),sel=fleet.selections.copy(),energy=fleet.energy.sum()/1e6,delay=pen[touched].mean()*100,work=fleet.work.sum()/1e3,rounds=fleet.total_rounds)
-print('W sweep for CETAS (V=5, nu=0.5), seeds 0-3')
+print('W sweep for CETAS (V=5, nu=0.5), seeds 0-5')
 for W in (0.05,1.0,5.0,20.0,50.0):
-    R=[run_ext('charger_aware',s,5.0,0.5,W) for s in range(4)]
+    R=[run_ext('charger_aware',s,5.0,0.5,W) for s in range(6)]
     avg_rate=np.mean([r['cyc']/r['rounds'] for r in R],axis=0)      # per-device average wear per round
     part=np.concatenate([(r['sel']>0) for r in R])
     rate=np.concatenate([r['cyc']/r['rounds'] for r in R])

@@ -1,24 +1,34 @@
 """
-Minimal hyperparameter search for the three baselines that have a genuine
-free parameter (FedCS-Greedy has none, by its own docstring). Copies the
-exact decision-rule logic from fleet_charging.py's p_oort/p_eafl/p_wilfq,
-parameterising only the one constant each currently hardcodes, so the
-reimplementation stays faithful to what is already validated.
+Baseline tuning (Section 8.10, Tables 11, S15, and S16).
 
-Two safety checks built in before trusting any swept result:
-  1. Sanity check: default-parameter run must reproduce cats_tuned_full.pkl's
-     already-published numbers for that baseline, seed-for-seed-matched mean.
-  2. Canary check: output must actually change across swept values -- an
-     unchanging output across the whole sweep means the parameter is not
-     wired into the decision rule and the run is untrustworthy.
+Oort, EAFL, and the WILF-Q-analog each expose one free parameter; FedCS-Greedy
+has none. Each parameter is swept over 30 evenly spaced values on the six
+evaluation seeds (0 to 5):
 
-All percentages are reported with an explicit *100 conversion, printed
-alongside the raw fraction, to avoid the exact units bug found and fixed
-in the ablation section.
+    Oort speed-discount exponent alpha      0.1 to 6.0
+    EAFL safety floor (state of charge)     0.01 to 0.40
+    WILF-Q-analog utility-blend weight      0.0 to 2.0
+
+For each baseline the selected value minimises the rank-sum of mean energy,
+mean charging delay, and mean worst-device fatigue over the 30 values (ties
+broken by lower delay). The selected settings are then re-evaluated on six
+unseen seeds (6 to 11), which gives Table S16.
+
+The decision rules below are parameterised copies of p_oort, p_eafl, and
+p_wilfq in fleet_charging.py. Run with default parameters they reproduce the
+corresponding Table 4 rows (checked by the sanity block at the start of main).
+
+Usage: python baseline_tuning.py
+Writes baseline_tuning_results.pkl. Requires cats_tuned_full.pkl from
+reproduce_table4.py for the sanity check.
 """
+import pickle
+
 import numpy as np
+
 import fleet_charging as FC
 import thermal as TH
+
 
 def _topk(score, pool, K):
     return pool if len(pool) <= K else pool[np.argsort(-score)[:K]]
@@ -95,36 +105,81 @@ def run_custom(policy_fn, n=100, hours=6.0, K=30, seed=0,
     }
 
 
-SEEDS = range(6)
+GRIDS = {
+    "oort": np.linspace(0.1, 6.0, 30),
+    "eafl": np.linspace(0.01, 0.40, 30),
+    "wilfq": np.linspace(0.0, 2.0, 30),
+}
+DEFAULTS = {"oort": 2.0, "eafl": 0.05, "wilfq": 0.05}
+SELECTION_SEEDS = range(6)
+UNSEEN_SEEDS = range(6, 12)
 
-print("=" * 70)
-print("SANITY CHECK: default-parameter reimplementation vs published pickle")
-print("=" * 70)
 
-import pickle
-published = pickle.load(open("cats_tuned_full.pkl", "rb"))
+def make_policy(name, value, wilfq_idx):
+    if name == "oort":
+        return make_p_oort(value)
+    if name == "eafl":
+        return make_p_eafl(value)
+    return make_p_wilfq(value, wilfq_idx)
 
-# Oort default alpha=2.0
-oort_fn = make_p_oort(alpha=2.0)
-runs = [run_custom(oort_fn, seed=s) for s in SEEDS]
-e = np.mean([r["energy_J"] for r in runs])
-pub_e = np.mean([r["energy_J"] for r in published["oort"]])
-print(f"Oort  default: my energy={e/1e6:.4f} MJ  published={pub_e/1e6:.4f} MJ  "
-      f"match={'YES' if abs(e-pub_e)/pub_e < 0.01 else 'NO -- STOP'}")
 
-# EAFL default soc_min=0.05
-eafl_fn = make_p_eafl(soc_min=0.05)
-runs = [run_custom(eafl_fn, seed=s) for s in SEEDS]
-e = np.mean([r["energy_J"] for r in runs])
-pub_e = np.mean([r["energy_J"] for r in published["eafl"]])
-print(f"EAFL  default: my energy={e/1e6:.4f} MJ  published={pub_e/1e6:.4f} MJ  "
-      f"match={'YES' if abs(e-pub_e)/pub_e < 0.01 else 'NO -- STOP'}")
+def summarize(runs):
+    return {
+        "energy_MJ": np.mean([r["energy_J"] for r in runs]) / 1e6,
+        "delay_pct": np.mean([r["chg_penalty_mean_frac"] for r in runs]) * 100,
+        "fatigue": np.mean([r["cycling_max"] for r in runs]),
+        "work_ks": np.mean([r["work_s"] for r in runs]) / 1e3,
+    }
 
-# WILF-Q default weight=0.05
-wilfq_idx = FC._build_wilfq_index(65.0, 15.0)
-wilfq_fn = make_p_wilfq(util_weight=0.05, wilfq_idx=wilfq_idx)
-runs = [run_custom(wilfq_fn, seed=s) for s in SEEDS]
-e = np.mean([r["energy_J"] for r in runs])
-pub_e = np.mean([r["energy_J"] for r in published["wilfq"]])
-print(f"WILF-Q default: my energy={e/1e6:.4f} MJ  published={pub_e/1e6:.4f} MJ  "
-      f"match={'YES' if abs(e-pub_e)/pub_e < 0.01 else 'NO -- STOP'}")
+
+def select_by_rank_sum(rows):
+    """Index of the value with the lowest rank-sum over energy, delay, and
+    fatigue; ties are broken by lower delay."""
+    keys = ("energy_MJ", "delay_pct", "fatigue")
+    ranks = sum(np.argsort(np.argsort([r[k] for r in rows])) + 1 for k in keys)
+    best = np.flatnonzero(ranks == ranks.min())
+    return int(min(best, key=lambda i: rows[i]["delay_pct"]))
+
+
+def main():
+    wilfq_idx = FC._build_wilfq_index(65.0, 15.0)
+
+    print("Sanity check: default parameters against cats_tuned_full.pkl")
+    published = pickle.load(open("cats_tuned_full.pkl", "rb"))
+    for name, value in DEFAULTS.items():
+        fn = make_policy(name, value, wilfq_idx)
+        runs = [run_custom(fn, seed=s) for s in SELECTION_SEEDS]
+        e = np.mean([r["energy_J"] for r in runs])
+        pub = np.mean([r["energy_J"] for r in published[name]])
+        ok = abs(e - pub) / pub < 0.01
+        print(f"  {name:6} energy {e/1e6:.4f} MJ vs published {pub/1e6:.4f} MJ: "
+              f"{'match' if ok else 'MISMATCH'}")
+        if not ok:
+            raise SystemExit("default reimplementation does not match Table 4")
+
+    results = {}
+    for name, grid in GRIDS.items():
+        rows = []
+        print(f"\n{name}: sweep over {len(grid)} values")
+        for v in grid:
+            fn = make_policy(name, v, wilfq_idx)
+            rows.append(summarize([run_custom(fn, seed=s) for s in SELECTION_SEEDS]))
+            r = rows[-1]
+            print(f"  {v:7.4f}  energy {r['energy_MJ']:.3f} MJ  delay {r['delay_pct']:6.1f}%  "
+                  f"fatigue {r['fatigue']:7.0f}  work {r['work_ks']:6.1f} ks")
+        k = select_by_rank_sum(rows)
+        fn = make_policy(name, grid[k], wilfq_idx)
+        unseen = summarize([run_custom(fn, seed=s) for s in UNSEEN_SEEDS])
+        results[name] = {"grid": grid, "rows": rows, "selected": float(grid[k]),
+                         "selected_row": rows[k], "unseen_row": unseen}
+        print(f"  selected {grid[k]:.4f}: delay {rows[k]['delay_pct']:.1f}%, "
+              f"fatigue {rows[k]['fatigue']:.0f}, energy {rows[k]['energy_MJ']:.2f} MJ")
+        print(f"  unseen seeds 6-11: delay {unseen['delay_pct']:.1f}%, "
+              f"fatigue {unseen['fatigue']:.0f}, energy {unseen['energy_MJ']:.2f} MJ")
+
+    pickle.dump(results, open("baseline_tuning_results.pkl", "wb"))
+    print("\nSaved: baseline_tuning_results.pkl")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,7 @@
 """
-Reproduce Table 4 (main policy comparison) and Table 7 (classical scheduling
-metrics), and write cats_tuned_full.pkl, the reference file several other
-scripts in this repository read (baseline_tuning.py's sanity check,
-run_sweeps.py's CATS reference row).
+Reproduce Table 4 (main policy comparison) and Table 6 (classical scheduling
+metrics), and write cats_tuned_full.pkl, the reference file that
+baseline_tuning.py reads for its sanity check.
 
 Settings match Section 7.1 and the tuned operating point of Section 8.3/8.5:
 K=30, W_budget=0.05, 65 s round / 15 s aggregation, six-hour campaign,
@@ -42,10 +41,8 @@ RUNS = {
     "fedcs":        ("fedcs", 1.0, 1.0),
     "cats_tuned":   ("charger_aware", 5.0, 0.5),
     # "cats_orig": CATS at the untuned energy weight (V=1) reported once in
-    # Section 8.2/8.3 before the V-sweep of Table 5 found V=5 optimal; the
-    # charger weight nu=0.5 was already fixed at this stage. Kept here
-    # because baseline_tuning.py's sanity check and run_sweeps.py's
-    # reference row both read it from this file.
+    # Section 8.2/8.3 before the V-sweep of Table S2 found V=5 optimal; the
+    # charger weight nu=0.5 was already fixed at this stage.
     "cats_orig":    ("charger_aware", 1.0, 0.5),
 }
 
@@ -87,4 +84,4 @@ if __name__ == "__main__":
 
     pickle.dump(results, open("cats_tuned_full.pkl", "wb"))
     print("\nSaved: cats_tuned_full.pkl")
-    print("(baseline_tuning.py and run_sweeps.py read this file directly)")
+    print("(baseline_tuning.py reads this file directly)")

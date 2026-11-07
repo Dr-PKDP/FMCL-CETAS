@@ -26,13 +26,13 @@ which subfolder they live in.
 .
 ├── thermal.py, charging.py, coefficients.py, scheduler.py,      core model
 │   fleet_charging.py, simulation.py, converge_charging.py,
-│   real_data.py, pols.py, oort_v2.py, eafl_v2.py, verify.py,
-│   uncertainty.py, uq_charging.py
-├── reproduce_table4.py, baseline_tuning.py, run_sweeps.py,      main comparison
+│   verify.py, uncertainty.py, uq_charging.py
+├── reproduce_table4.py, baseline_tuning.py,                      main comparison
 │   churn_experiment.py
 ├── main_comparison/        Tables S17, S20
 ├── convergence/             Tables 7, 8, 9, 10, S21
 ├── wear_sensitivity/        Tables S5, S18, S19
+├── analysis/                  Statistics computed from the saved results
 ├── realdata/                 Section 8.9 (digits, MNIST, CIFAR-10)
 ├── tracesim/                 Sections 7.7, 7.9
 └── pilot-study/               Section 4.4, Table 3
@@ -58,11 +58,20 @@ which subfolder they live in.
 | File | Contents |
 | --- | --- |
 | `reproduce_table4.py` | Main policy comparison (Table 4) and the classical scheduling metrics that accompany it (Table 6); writes `cats_tuned_full.pkl`, which later scripts read |
-| `baseline_tuning.py` | Hyperparameter search for the three tunable baselines (Section 8.10) |
-| `run_sweeps.py` | Additional coefficient and parameter sweeps referenced in Sections 8.3–8.5 |
-| `pols.py`, `oort_v2.py`, `eafl_v2.py` | Code-informed reimplementations of Oort and EAFL, checked against their published source |
-| `main_comparison/s17_confirmatory_baselines.py` | Table S17: CETAS against eleven baselines on 30 further seeds, Holm-corrected |
+| `baseline_tuning.py` | 30-value sweep of the one free parameter of Oort, EAFL, and the WILF-Q-analog, rank-sum selection, and re-evaluation on six unseen seeds (Section 8.10, Tables 11, S15, S16) |
+| `main_comparison/s17_confirmatory_baselines.py` | Table S17: simulation runs for CETAS and the baselines on 30 further seeds |
 | `main_comparison/s20_availability_check.py`, `main_comparison/fleet_charging_independent_availability.py` | Table S20: robustness to an independent availability random stream |
+
+The code-informed Oort variant of Table 11 (Section 8.10), the `getTopK` rules of the released Oort code added to the reimplementation, is not part of this repository, so its row in Tables 11, S16, and S17 cannot be regenerated here. `main_comparison/s17_confirmatory_baselines.py` therefore runs ten baselines, and its Holm correction covers 40 tests, whereas Table S17 covers 44.
+
+**Statistics from saved results** (`analysis/`; each script reads the pickle written by the script named in its header):
+
+| File | Contents |
+| --- | --- |
+| `analysis/s17_holm_analysis.py` | Table S17: median differences, better-in-all-seeds flags, paired Wilcoxon tests, Holm correction |
+| `analysis/convergence_ratios.py` | Tables 9 and S21 and the digits/MNIST rows of Section 8.9: geometric-mean ratios to random selection, confidence intervals, Wilcoxon and Holm p-values |
+| `analysis/s5_baseline_rows.py` | Table S5: fractions of the 70 coefficient draws in which each stated ordering holds |
+| `analysis/f9_sobol_check.py` | Section 5.4 and Section 9.3: observed fatigue-worst session length against the prediction of Eq. 13, and Sobol total-order indices |
 
 **Convergence:**
 
@@ -130,13 +139,16 @@ python reproduce_table4.py
 
 # 3. Baseline tuning (Section 8.10) and confirmatory checks.
 python baseline_tuning.py
-python run_sweeps.py
 python main_comparison/s17_confirmatory_baselines.py
+python analysis/s17_holm_analysis.py
 
 # 4. Convergence (Tables 7-9, Section 8.8).
 python convergence/table7_8_convergence.py
-python convergence/table9_and_s21_confirmatory_seeds.py 0.3 random,charger_aware,energy_only 0 30
+python convergence/table9_and_s21_confirmatory_seeds.py 0.3 random,charger_aware,energy_only,static_score,oort,eafl,wilfq,fedcs 0 30
+python convergence/table9_and_s21_confirmatory_seeds.py 0.1 random,charger_aware,energy_only 0 30
+python convergence/table9_and_s21_confirmatory_seeds.py 0.05 random,charger_aware,energy_only 0 30
 python convergence/noniid_sweep.py
+python analysis/convergence_ratios.py conv30.pkl 0.3
 
 # 5. Ablation (Table 10).
 python convergence/table10_ablation.py
@@ -145,6 +157,8 @@ python convergence/table10_ablation.py
 python uncertainty.py
 python uq_charging.py
 python wear_sensitivity/s5_coefficient_sensitivity.py 0 70
+python analysis/s5_baseline_rows.py
+python analysis/f9_sobol_check.py
 
 # 7. Wear model checks (Tables S18, S19).
 python wear_sensitivity/s18_raw_dpp_form.py
@@ -170,6 +184,7 @@ python section8_9_digits_mnist_partitions.py mnist 50 multi 10
 python run_cifar_partitions.py
 python analyze_cifar_partitions.py
 cd ..
+python analysis/convergence_ratios.py realdata/real_digits.pkl
 ```
 
 ### Real-trace validation (Sections 7.7 and 7.9)
